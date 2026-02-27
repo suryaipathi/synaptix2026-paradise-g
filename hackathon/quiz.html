@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>Adaptive Assessment Platform</title>
+
+    <style>
+        body {
+            margin: 0;
+            font-family: Segoe UI;
+            background: linear-gradient(135deg, #e3f2fd, #e8f5e9);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        
+        .container {
+            width: 750px;
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        }
+        
+        h2 {
+            color: #1565c0;
+        }
+        
+        button {
+            background: #2e7d32;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            margin-top: 15px;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+        
+        button:hover {
+            background: #1b5e20;
+        }
+        
+        .option {
+            margin: 8px 0;
+        }
+        
+        .timer {
+            font-weight: bold;
+            color: #0d47a1;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <h2>Adaptive Online Assessment</h2>
+        <div class="timer">Time Taken: <span id="time">0</span> seconds</div>
+        <br>
+        <div id="questionBox"></div>
+        <div id="optionsBox"></div>
+        <button onclick="nextQuestion()">Submit</button>
+        <div id="result"></div>
+    </div>
+
+
+    <script>
+        let correctStreak = 0;
+        let wrongStreak = 0;
+        let startTime = Date.now();
+        let timerInterval = setInterval(() => {
+            document.getElementById("time").innerText =
+                Math.floor((Date.now() - startTime) / 1000);
+        }, 1000);
+
+        let currentDifficulty = 2;
+        let subjectIndex = 0;
+        let questionCount = 0;
+
+        const subjects = ["Mathematics", "Computer Science", "Aptitude"];
+
+        let performance = {
+            "Mathematics": {
+                correct: 0,
+                total: 0
+            },
+            "Computer Science": {
+                correct: 0,
+                total: 0
+            },
+            "Aptitude": {
+                correct: 0,
+                total: 0
+            }
+        };
+
+        const questions = {
+
+            Mathematics: {
+
+                1: [ // EASY (Basic Students)
+                    {
+                        q: "2 + 3?",
+                        options: ["4", "5", "6", "7"],
+                        answer: "5"
+                    }, {
+                        q: "9 - 4?",
+                        options: ["3", "4", "5", "6"],
+                        answer: "5"
+                    }, {
+                        q: "3 × 2?",
+                        options: ["5", "6", "7", "8"],
+                        answer: "6"
+                    }, {
+                        q: "12 ÷ 4?",
+                        options: ["2", "3", "4", "5"],
+                        answer: "3"
+                    }, {
+                        q: "15 + 5?",
+                        options: ["18", "19", "20", "21"],
+                        answer: "20"
+                    }, {
+                        q: "7 + 8?",
+                        options: ["14", "15", "16", "17"],
+                        answer: "15"
+                    }, {
+                        q: "10 - 7?",
+                        options: ["2", "3", "4", "5"],
+                        answer: "3"
+                    }, {
+                        q: "6 × 3?",
+                        options: ["15", "16", "17", "18"],
+                        answer: "18"
+                    }, {
+                        q: "100 ÷ 10?",
+                        options: ["5", "8", "9", "10"],
+                        answer: "10"
+                    }, {
+                        q: "25 + 25?",
+                        options: ["40", "45", "50", "55"],
+                        answer: "50"
+                    }
+                ],
+
+                2: [ // MEDIUM (Average Students)
+                    {
+                        q: "Solve: 2x = 10",
+                        options: ["3", "4", "5", "6"],
+                        answer: "5"
+                    }, {
+                        q: "Square root of 169?",
+                        options: ["11", "12", "13", "14"],
+                        answer: "13"
+                    }, {
+                        q: "15% of 200?",
+                        options: ["25", "30", "35", "40"],
+                        answer: "30"
+                    }, {
+                        q: "Area of square (side=6)?",
+                        options: ["30", "36", "42", "48"],
+                        answer: "36"
+                    }, {
+                        q: "LCM of 4 and 6?",
+                        options: ["10", "12", "14", "16"],
+                        answer: "12"
+                    }, {
+                        q: "3² + 4²?",
+                        options: ["20", "25", "30", "35"],
+                        answer: "25"
+                    }, {
+                        q: "Solve: x + 7 = 15",
+                        options: ["6", "7", "8", "9"],
+                        answer: "8"
+                    }, {
+                        q: "Perimeter of rectangle (4,6)?",
+                        options: ["18", "20", "22", "24"],
+                        answer: "20"
+                    }, {
+                        q: "Probability of head (1 coin)?",
+                        options: ["0", "1", "1/2", "2"],
+                        answer: "1/2"
+                    }, {
+                        q: "Simple interest on 1000 at 10%?",
+                        options: ["50", "100", "150", "200"],
+                        answer: "100"
+                    }
+                ],
+
+                3: [ // HARD (Merit Students)
+                    {
+                        q: "Derivative of x²?",
+                        options: ["x", "2x", "x²", "2"],
+                        answer: "2x"
+                    }, {
+                        q: "Integral of 1 dx?",
+                        options: ["x", "1", "0", "x²"],
+                        answer: "x"
+                    }, {
+                        q: "Limit of x→0 sinx/x?",
+                        options: ["0", "1", "∞", "-1"],
+                        answer: "1"
+                    }, {
+                        q: "Matrix determinant of [[1,2],[3,4]]?",
+                        options: ["-2", "2", "-1", "1"],
+                        answer: "-2"
+                    }, {
+                        q: "Log₁₀(1000)?",
+                        options: ["2", "3", "4", "5"],
+                        answer: "3"
+                    }, {
+                        q: "d/dx(3x³)?",
+                        options: ["9x²", "3x²", "6x²", "x³"],
+                        answer: "9x²"
+                    }, {
+                        q: "Variance measures?",
+                        options: ["Spread", "Mean", "Mode", "Median"],
+                        answer: "Spread"
+                    }, {
+                        q: "sin²x + cos²x?",
+                        options: ["0", "1", "2", "-1"],
+                        answer: "1"
+                    }, {
+                        q: "Eigenvalues belong to?",
+                        options: ["Matrix", "Vector", "Scalar", "Angle"],
+                        answer: "Matrix"
+                    }, {
+                        q: "Probability range?",
+                        options: ["0-1", "1-10", "-1-1", "0-10"],
+                        answer: "0-1"
+                    }
+                ]
+
+            },
+
+            "Computer Science": {
+
+                1: [ // EASY
+                    {
+                        q: "RAM stands for?",
+                        options: ["Random Access Memory", "Read Only Memory", "Run Memory", "Ready Access Memory"],
+                        answer: "Random Access Memory"
+                    }, {
+                        q: "CPU is?",
+                        options: ["Input", "Output", "Processing", "Storage"],
+                        answer: "Processing"
+                    }, {
+                        q: "Mouse is?",
+                        options: ["Input", "Output", "Storage", "Software"],
+                        answer: "Input"
+                    }, {
+                        q: "1 Byte = ?",
+                        options: ["4 bits", "8 bits", "16 bits", "32 bits"],
+                        answer: "8 bits"
+                    }, {
+                        q: "Monitor is?",
+                        options: ["Input", "Output", "Memory", "CPU"],
+                        answer: "Output"
+                    }, {
+                        q: "Binary uses?",
+                        options: ["0,1", "1-9", "A-F", "2-8"],
+                        answer: "0,1"
+                    }, {
+                        q: "Keyboard is?",
+                        options: ["Input", "Output", "Storage", "Program"],
+                        answer: "Input"
+                    }, {
+                        q: "Hard Disk is?",
+                        options: ["Storage", "CPU", "Input", "Output"],
+                        answer: "Storage"
+                    }, {
+                        q: "HTML used for?",
+                        options: ["Structure", "Styling", "Database", "AI"],
+                        answer: "Structure"
+                    }, {
+                        q: "OS example?",
+                        options: ["Windows", "Chrome", "CPU", "RAM"],
+                        answer: "Windows"
+                    }
+                ],
+
+                2: [ // MEDIUM
+                    {
+                        q: "FIFO structure?",
+                        options: ["Stack", "Queue", "Tree", "Graph"],
+                        answer: "Queue"
+                    }, {
+                        q: "LIFO structure?",
+                        options: ["Queue", "Stack", "Tree", "Graph"],
+                        answer: "Stack"
+                    }, {
+                        q: "Time complexity of linear search?",
+                        options: ["O(n)", "O(log n)", "O(1)", "O(n²)"],
+                        answer: "O(n)"
+                    }, {
+                        q: "Database language?",
+                        options: ["HTML", "CSS", "SQL", "Python"],
+                        answer: "SQL"
+                    }, {
+                        q: "Primary key is?",
+                        options: ["Unique", "Duplicate", "Optional", "Random"],
+                        answer: "Unique"
+                    }, {
+                        q: "HTTP stands for?",
+                        options: ["HyperText Transfer Protocol", "High Transfer Text Program", "Hyper Tool Transfer", "None"],
+                        answer: "HyperText Transfer Protocol"
+                    }, {
+                        q: "CSS used for?",
+                        options: ["Design", "Logic", "Database", "AI"],
+                        answer: "Design"
+                    }, {
+                        q: "Compiler converts?",
+                        options: ["High to Low", "Low to High", "Binary to Text", "None"],
+                        answer: "High to Low"
+                    }, {
+                        q: "IP address identifies?",
+                        options: ["Device", "File", "CPU", "RAM"],
+                        answer: "Device"
+                    }, {
+                        q: "Algorithm means?",
+                        options: ["Step process", "Hardware", "Device", "Virus"],
+                        answer: "Step process"
+                    }
+                ],
+
+                3: [ // HARD
+                    {
+                        q: "Binary Search complexity?",
+                        options: ["O(log n)", "O(n)", "O(n²)", "O(1)"],
+                        answer: "O(log n)"
+                    }, {
+                        q: "Normalization avoids?",
+                        options: ["Redundancy", "Security", "Speed", "Error"],
+                        answer: "Redundancy"
+                    }, {
+                        q: "Deadlock occurs in?",
+                        options: ["OS", "HTML", "CSS", "AI"],
+                        answer: "OS"
+                    }, {
+                        q: "Hashing used for?",
+                        options: ["Fast search", "Sorting", "Printing", "Drawing"],
+                        answer: "Fast search"
+                    }, {
+                        q: "NP Complete problems?",
+                        options: ["Hard", "Easy", "Basic", "Simple"],
+                        answer: "Hard"
+                    }, {
+                        q: "Virtual memory?",
+                        options: ["Disk as RAM", "Extra CPU", "Cache", "ROM"],
+                        answer: "Disk as RAM"
+                    }, {
+                        q: "Recursion uses?",
+                        options: ["Stack", "Queue", "Heap", "Disk"],
+                        answer: "Stack"
+                    }, {
+                        q: "TCP is?",
+                        options: ["Protocol", "Language", "CPU", "RAM"],
+                        answer: "Protocol"
+                    }, {
+                        q: "Machine learning is part of?",
+                        options: ["AI", "DBMS", "OS", "HTML"],
+                        answer: "AI"
+                    }, {
+                        q: "Cloud computing provides?",
+                        options: ["Online services", "Hardware only", "RAM", "CPU"],
+                        answer: "Online services"
+                    }
+                ]
+
+            },
+
+            Aptitude: {
+
+                1: [ // EASY
+                    {
+                        q: "50% of 100?",
+                        options: ["40", "50", "60", "70"],
+                        answer: "50"
+                    }, {
+                        q: "Next after Tuesday?",
+                        options: ["Monday", "Wednesday", "Friday", "Sunday"],
+                        answer: "Wednesday"
+                    }, {
+                        q: "5×5?",
+                        options: ["20", "25", "30", "35"],
+                        answer: "25"
+                    }, {
+                        q: "10% of 200?",
+                        options: ["10", "20", "30", "40"],
+                        answer: "20"
+                    }, {
+                        q: "Even number?",
+                        options: ["3", "5", "8", "9"],
+                        answer: "8"
+                    }, {
+                        q: "Opposite of Hot?",
+                        options: ["Cold", "Warm", "Cool", "Dry"],
+                        answer: "Cold"
+                    }, {
+                        q: "2+2?",
+                        options: ["3", "4", "5", "6"],
+                        answer: "4"
+                    }, {
+                        q: "12/3?",
+                        options: ["2", "3", "4", "5"],
+                        answer: "4"
+                    }, {
+                        q: "Largest?",
+                        options: ["2", "9", "5", "1"],
+                        answer: "9"
+                    }, {
+                        q: "Odd number?",
+                        options: ["2", "4", "6", "7"],
+                        answer: "7"
+                    }
+                ],
+
+                2: [ // MEDIUM
+                    {
+                        q: "2:4 = 3:x",
+                        options: ["5", "6", "7", "8"],
+                        answer: "6"
+                    }, {
+                        q: "Speed = Distance/?",
+                        options: ["Time", "Mass", "Area", "Power"],
+                        answer: "Time"
+                    }, {
+                        q: "Average of 2,4,6?",
+                        options: ["3", "4", "5", "6"],
+                        answer: "4"
+                    }, {
+                        q: "Compound interest relates to?",
+                        options: ["Bank", "School", "Car", "Food"],
+                        answer: "Bank"
+                    }, {
+                        q: "Train problem relates to?",
+                        options: ["Speed", "Color", "Shape", "Sound"],
+                        answer: "Speed"
+                    }, {
+                        q: "If 3 pens cost 30, 1 pen?",
+                        options: ["5", "8", "10", "12"],
+                        answer: "10"
+                    }, {
+                        q: "Synonym of Quick?",
+                        options: ["Fast", "Slow", "Late", "Weak"],
+                        answer: "Fast"
+                    }, {
+                        q: "Ratio 10:5 simplifies?",
+                        options: ["1:2", "2:1", "3:1", "1:3"],
+                        answer: "2:1"
+                    }, {
+                        q: "Simple interest formula?",
+                        options: ["PTR/100", "P+T", "P/T", "RPT"],
+                        answer: "PTR/100"
+                    }, {
+                        q: "Next: 3,6,9,?",
+                        options: ["10", "11", "12", "15"],
+                        answer: "12"
+                    }
+                ],
+
+                3: [ // HARD
+                    {
+                        q: "Sequence: 2,6,12,20,?",
+                        options: ["28", "30", "32", "36"],
+                        answer: "30"
+                    }, {
+                        q: "Boat upstream formula?",
+                        options: ["B-S", "B+S", "S-B", "None"],
+                        answer: "B-S"
+                    }, {
+                        q: "Probability of 2 heads (2 coins)?",
+                        options: ["1/4", "1/2", "3/4", "1"],
+                        answer: "1/4"
+                    }, {
+                        q: "Time & Work formula?",
+                        options: ["1/T", "T+W", "W-T", "None"],
+                        answer: "1/T"
+                    }, {
+                        q: "Permutation formula?",
+                        options: ["n!", "n²", "n", "n/2"],
+                        answer: "n!"
+                    }, {
+                        q: "Combination formula?",
+                        options: ["nCr", "nPr", "n²", "n!"],
+                        answer: "nCr"
+                    }, {
+                        q: "Clock angle at 3:00?",
+                        options: ["90", "60", "45", "30"],
+                        answer: "90"
+                    }, {
+                        q: "Mixture problem relates to?",
+                        options: ["Ratio", "Speed", "Area", "Volume"],
+                        answer: "Ratio"
+                    }, {
+                        q: "Profit % formula?",
+                        options: ["Profit/CP×100", "CP/SP", "SP-CP", "None"],
+                        answer: "Profit/CP×100"
+                    }, {
+                        q: "Dice probability?",
+                        options: ["1/6", "1/2", "1/3", "1/4"],
+                        answer: "1/6"
+                    }
+                ]
+
+            }
+
+        };
+
+        let currentQuestionList = [];
+        let questionPointer = 0;
+
+        function loadQuestion() {
+            let subject = subjects[subjectIndex];
+
+            if (questionPointer === 0) {
+                currentQuestionList = questions[subject][currentDifficulty];
+            }
+
+            let qObj = currentQuestionList[questionPointer];
+
+            document.getElementById("questionBox").innerHTML =
+                "<b>Subject:</b> " + subject +
+                "<br><b>Difficulty:</b> " +
+                (currentDifficulty == 1 ? "Easy" : currentDifficulty == 2 ? "Medium" : "Hard") +
+                "<br><br>" + qObj.q;
+
+            let optionsHTML = "";
+            qObj.options.forEach(opt => {
+                optionsHTML += `
+        <div class="option">
+        <input type="radio" name="option" value="${opt}"> ${opt}
+        </div>`;
+            });
+
+            document.getElementById("optionsBox").innerHTML = optionsHTML;
+        }
+
+        function nextQuestion() {
+            let selected = document.querySelector('input[name="option"]:checked');
+            if (!selected) {
+                alert("Select an option");
+                return;
+            }
+
+            let subject = subjects[subjectIndex];
+            let qObj = currentQuestionList[questionPointer];
+
+            performance[subject].total++;
+
+            if (selected.value === qObj.answer) {
+
+                performance[subject].correct++;
+                correctStreak++;
+                wrongStreak = 0;
+
+            } else {
+
+                wrongStreak++;
+                correctStreak = 0;
+            }
+
+            if (correctStreak >= 2) {
+                currentDifficulty = Math.min(3, currentDifficulty + 1);
+                correctStreak = 0;
+            }
+
+            if (wrongStreak >= 2) {
+                currentDifficulty = Math.max(1, currentDifficulty - 1);
+                wrongStreak = 0;
+            }
+
+            questionPointer++;
+            questionCount++;
+
+            if (questionPointer >= currentQuestionList.length) {
+                subjectIndex++;
+                questionPointer = 0;
+            }
+
+            if (subjectIndex >= subjects.length) {
+                showResult();
+                return;
+            }
+
+            loadQuestion();
+        }
+
+        function showResult() {
+            clearInterval(timerInterval);
+            let totalTime = Math.floor((Date.now() - startTime) / 1000);
+
+            document.getElementById("questionBox").innerHTML = "Assessment Completed!";
+            document.getElementById("optionsBox").innerHTML = "";
+            document.querySelector("button").style.display = "none";
+
+            let report = "<h3>Performance Report</h3>";
+
+            subjects.forEach(sub => {
+                let correct = performance[sub].correct;
+                let total = performance[sub].total;
+                let percent = total ? (correct / total) * 100 : 0;
+
+                let level = percent >= 80 ? "Advanced" :
+                    percent >= 60 ? "Intermediate" :
+                    percent >= 40 ? "Basic" :
+                    "Needs Practice";
+
+                report += `<b>${sub}</b><br>
+        <div style="background:#eee; width:100%; border-radius:6px;">
+    <div style="
+        width:${percent}%;
+        background:#2e7d32;
+        color:white;
+        padding:5px;
+        border-radius:6px;">
+        ${percent.toFixed(1)}%
+    </div>
+</div> <br>
+        Mastery: ${level}<br><br>`;
+            });
+            let bestSubject = "";
+            let worstSubject = "";
+            let bestScore = -1;
+            let worstScore = 101;
+
+            subjects.forEach(sub => {
+                let correct = performance[sub].correct;
+                let total = performance[sub].total;
+                let percent = total ? (correct / total) * 100 : 0;
+
+                if (percent > bestScore) {
+                    bestScore = percent;
+                    bestSubject = sub;
+                }
+
+                if (percent < worstScore) {
+                    worstScore = percent;
+                    worstSubject = sub;
+                }
+            });
+
+            report += `<b>Strongest Subject:</b> ${bestSubject}<br>`;
+            report += `<b>Needs Improvement:</b> ${worstSubject}<br><br>`;
+
+            report += "<b>Total Time Taken:</b> " + totalTime + " seconds";
+
+            document.getElementById("result").innerHTML = report;
+        }
+
+        loadQuestion();
+    </script>
+
+</body>
+
+</html>
