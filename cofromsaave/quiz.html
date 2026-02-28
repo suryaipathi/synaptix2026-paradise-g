@@ -1,0 +1,473 @@
+ <!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Adaptive Assessment Pro</title>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<!-- Confetti -->
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+<style>
+body{
+font-family:Segoe UI;
+background:linear-gradient(135deg,#e3f2fd,#e8f5e9);
+margin:0;
+display:flex;
+justify-content:center;
+align-items:center;
+height:100vh;
+}
+
+.wrapper{
+display:flex;
+gap:20px;
+width:1100px;
+}
+
+.container,.dashboard{
+background:white;
+padding:25px;
+border-radius:15px;
+box-shadow:0 10px 25px rgba(0,0,0,0.15);
+}
+
+.container{flex:2;}
+.dashboard{flex:1;}
+
+.option{
+padding:10px;
+border:2px solid #ddd;
+border-radius:8px;
+margin:8px 0;
+cursor:pointer;
+transition:0.3s;
+}
+.option:hover{background:#f1faff;}
+
+.correct{background:#d4edda;border-color:#28a745;}
+.wrong{background:#f8d7da;border-color:#dc3545;}
+
+.progress{
+height:18px;
+background:#eee;
+border-radius:10px;
+overflow:hidden;
+margin:8px 0;
+}
+.progress-fill{
+height:100%;
+width:0%;
+background:linear-gradient(90deg,#28a745,#4caf50);
+transition:width 0.8s ease;
+}
+
+.level-display{
+padding:10px;
+margin:10px 0;
+font-weight:bold;
+border-radius:8px;
+text-align:center;
+background:#f0f8ff;
+}
+
+/* Success Screen */
+.success-screen{
+position:fixed;
+top:0;
+left:0;
+width:100%;
+height:100%;
+background:linear-gradient(135deg,#4CAF50,#2196F3);
+display:flex;
+justify-content:center;
+align-items:center;
+color:white;
+animation:fadeIn 0.8s ease forwards;
+z-index:9999;
+}
+.success-card{
+background:rgba(255,255,255,0.15);
+padding:40px;
+border-radius:20px;
+text-align:center;
+backdrop-filter:blur(10px);
+animation:slideUp 1s ease;
+}
+@keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
+@keyframes slideUp{from{transform:translateY(50px);opacity:0;}to{transform:translateY(0);opacity:1;}}
+
+/* Animated Table */
+.analytics-table{
+width:100%;
+border-collapse:collapse;
+margin-top:30px;
+opacity:0;
+transform:translateY(30px);
+animation:fadeSlide 1s forwards;
+}
+.analytics-table th,.analytics-table td{
+border:1px solid #ddd;
+padding:10px;
+text-align:center;
+}
+.analytics-table th{
+background:#007bff;
+color:white;
+}
+@keyframes fadeSlide{to{opacity:1;transform:translateY(0);}}
+</style>
+</head>
+
+<body>
+
+<!-- Celebration Sound -->
+<audio id="celebrationSound" src="https://assets.mixkit.co/sfx/preview/mixkit-small-group-cheer-and-applause-518.mp3"></audio>
+
+<div class="wrapper">
+
+<div class="container">
+<h3>Adaptive Assessment</h3>
+
+<select id="subject">
+<option>Mathematics</option>
+<option>Computer Science</option>
+<option>Aptitude</option>
+</select>
+
+<button onclick="startQuiz()">Start Test</button>
+
+<div id="levelDisplay" class="level-display"></div>
+<h4 id="question"></h4>
+<div id="options"></div>
+<div id="explanation"></div>
+<button onclick="nextQuestion()">Next Question</button>
+</div>
+
+<div class="dashboard">
+<h3>📊 Live Performance</h3>
+<p><b>Subject:</b> <span id="dashSubject">-</span></p>
+<p><b>Level:</b> <span id="dashLevel">-</span></p>
+<p><b>Correct:</b> <span id="dashCorrect">0</span></p>
+<p><b>Wrong:</b> <span id="dashWrong">0</span></p>
+<p><b>Accuracy:</b> <span id="dashAccuracy">0%</span></p>
+<div class="progress">
+<div class="progress-fill" id="accuracyBar"></div>
+</div>
+</div>
+
+</div>
+
+<script>
+
+/* ===== SAMPLE QUESTIONS (Replace with full bank if needed) ===== */
+const questions = {
+
+Mathematics:{
+
+1:[
+{q:"2+3?",options:["4","5","6","7"],answer:"5",
+explanation:"TRUE: 2+3=5. Basic addition. Others are incorrect."},
+
+{q:"9-4?",options:["3","4","5","6"],answer:"5",
+explanation:"TRUE: 9-4=5. Subtraction removes 4 from 9."},
+
+{q:"3×2?",options:["5","6","7","8"],answer:"6",
+explanation:"TRUE: 3×2=6. Multiplication is repeated addition."},
+
+{q:"12÷4?",options:["2","3","4","5"],answer:"3",
+explanation:"TRUE: 12 divided by 4 equals 3."}
+],
+
+2:[
+{q:"Solve: 2x=10",options:["3","4","5","6"],answer:"5",
+explanation:"TRUE: Divide both sides by 2. x=5."},
+
+{q:"Square root of 169?",options:["11","12","13","14"],answer:"13",
+explanation:"TRUE: 13×13=169."},
+
+{q:"15% of 200?",options:["25","30","35","40"],answer:"30",
+explanation:"TRUE: 15/100×200=30."},
+
+{q:"Perimeter (4,6)?",options:["18","20","22","24"],answer:"20",
+explanation:"TRUE: 2(l+b)=2(4+6)=20."}
+],
+
+3:[
+{q:"Derivative of x²?",options:["x","2x","x²","2"],answer:"2x",
+explanation:"TRUE: Power rule d/dx(x^n)=n*x^(n-1)."},
+
+{q:"Integral of 1 dx?",options:["x","1","0","x²"],answer:"x",
+explanation:"TRUE: ∫1 dx = x + C."},
+
+{q:"Log₁₀(1000)?",options:["2","3","4","5"],answer:"3",
+explanation:"TRUE: 10³=1000."}
+]
+},
+
+"Computer Science":{
+
+1:[
+{q:"RAM stands for?",options:["Random Access Memory","Read Only Memory","Run Memory","Ready Access Memory"],
+answer:"Random Access Memory",
+explanation:"TRUE: RAM stores temporary data."},
+
+{q:"1 Byte=?",options:["4 bits","8 bits","16 bits","32 bits"],
+answer:"8 bits",
+explanation:"TRUE: 1 Byte = 8 bits."}
+],
+
+2:[
+{q:"FIFO structure?",options:["Stack","Queue","Tree","Graph"],
+answer:"Queue",
+explanation:"TRUE: Queue follows First In First Out."},
+
+{q:"Time complexity of linear search?",options:["O(n)","O(log n)","O(1)","O(n²)"],
+answer:"O(n)",
+explanation:"TRUE: Linear search checks elements one by one."}
+],
+
+3:[
+{q:"Binary Search complexity?",options:["O(log n)","O(n)","O(n²)","O(1)"],
+answer:"O(log n)",
+explanation:"TRUE: Binary search divides data into half each step."},
+
+{q:"Machine learning is part of?",options:["AI","DBMS","OS","HTML"],
+answer:"AI",
+explanation:"TRUE: ML is a subset of Artificial Intelligence."}
+]
+},
+
+Aptitude:{
+
+1:[
+{q:"50% of 100?",options:["40","50","60","70"],
+answer:"50",
+explanation:"TRUE: 50% means half. Half of 100 is 50."},
+
+{q:"5×5?",options:["20","25","30","35"],
+answer:"25",
+explanation:"TRUE: 5×5=25."}
+],
+
+2:[
+{q:"2:4 = 3:x",options:["5","6","7","8"],
+answer:"6",
+explanation:"TRUE: 2/4=3/x → 2x=12 → x=6."},
+
+{q:"Average of 2,4,6?",options:["3","4","5","6"],
+answer:"4",
+explanation:"TRUE: (2+4+6)/3=4."}
+],
+
+3:[
+{q:"Probability of 2 heads (2 coins)?",options:["1/4","1/2","3/4","1"],
+answer:"1/4",
+explanation:"TRUE: Only HH favorable out of 4 outcomes."},
+
+{q:"Clock angle at 3:00?",options:["90","60","45","30"],
+answer:"90",
+explanation:"TRUE: At 3:00, hands form 90° angle."}
+]
+}
+
+};let subject,currentLevel=2,currentQuestion;
+let asked=0,totalQuestions=10;
+let correct=0,wrong=0;
+let completedSubjects={};
+let subjectsList=["Mathematics","Computer Science","Aptitude"];
+
+function startQuiz(){
+subject=document.getElementById("subject").value;
+if(completedSubjects[subject]){alert("Already completed");return;}
+currentLevel=2;asked=0;correct=0;wrong=0;
+document.getElementById("dashSubject").innerText=subject;
+updateLevel();updateDashboard();nextQuestion();
+}
+
+function updateLevel(){
+let text=currentLevel==1?"Easy":currentLevel==2?"Medium":"Hard";
+document.getElementById("levelDisplay").innerText="Current Level: "+text;
+document.getElementById("dashLevel").innerText=text;
+}
+
+function updateDashboard(){
+let accuracy=asked==0?0:((correct/asked)*100).toFixed(1);
+document.getElementById("dashCorrect").innerText=correct;
+document.getElementById("dashWrong").innerText=wrong;
+document.getElementById("dashAccuracy").innerText=accuracy+"%";
+document.getElementById("accuracyBar").style.width=accuracy+"%";
+}
+
+function getRandom(){
+let arr=questions[subject][currentLevel];
+return arr[Math.floor(Math.random()*arr.length)];
+}
+
+function loadQuestion(){
+document.getElementById("question").innerText=currentQuestion.q;
+let optionsDiv=document.getElementById("options");
+optionsDiv.innerHTML="";
+currentQuestion.options.forEach(opt=>{
+let div=document.createElement("div");
+div.className="option";
+div.innerText=opt;
+div.onclick=()=>checkAnswer(opt,div);
+optionsDiv.appendChild(div);
+});
+}
+
+function checkAnswer(selected,div){
+document.querySelectorAll(".option").forEach(o=>o.style.pointerEvents="none");
+if(selected===currentQuestion.answer){
+div.classList.add("correct");correct++;if(currentLevel<3)currentLevel++;
+}else{
+div.classList.add("wrong");wrong++;if(currentLevel>1)currentLevel--;
+}
+asked++;updateLevel();updateDashboard();
+document.getElementById("explanation").innerText=currentQuestion.explanation;
+}
+
+function nextQuestion(){
+if(asked>=totalQuestions){
+let accuracy=((correct/totalQuestions)*100).toFixed(1);
+completedSubjects[subject]={level:currentLevel,accuracy:accuracy,correct:correct,wrong:wrong};
+showCompletionScreen(subject,accuracy,currentLevel);
+return;
+}
+currentQuestion=getRandom();
+loadQuestion();
+}
+
+function showCompletionScreen(sub,accuracy,level){
+let levelText=level==1?"Easy":level==2?"Medium":"Hard";
+let message=accuracy>=80?"🔥 Outstanding Performance!":accuracy>=60?"👏 Good Job!":"💪 Practice More!";
+let screen=document.createElement("div");
+screen.className="success-screen";
+screen.innerHTML=`<div class="success-card">
+<h1>🎉 ${sub} Completed</h1>
+<h3>Final Level: ${levelText}</h3>
+<h3>Accuracy: ${accuracy}%</h3>
+<p>${message}</p>
+<p>Redirecting to Home...</p>
+</div>`;
+document.body.appendChild(screen);
+
+if(accuracy>=80){
+launchConfetti();
+document.getElementById("celebrationSound").play();
+}
+
+let options=document.getElementById("subject").options;
+for(let i=0;i<options.length;i++){
+if(options[i].value===sub) options[i].disabled=true;
+}
+
+setTimeout(()=>{screen.remove();resetHome();},3000);
+}
+
+function launchConfetti(){
+let duration=2000;
+let end=Date.now()+duration;
+(function frame(){
+confetti({particleCount:5,angle:60,spread:55,origin:{x:0}});
+confetti({particleCount:5,angle:120,spread:55,origin:{x:1}});
+if(Date.now()<end) requestAnimationFrame(frame);
+})();
+}
+
+function resetHome(){
+asked=0;correct=0;wrong=0;currentLevel=2;
+document.getElementById("question").innerText="";
+document.getElementById("options").innerHTML="";
+document.getElementById("explanation").innerHTML="";
+document.getElementById("levelDisplay").innerText="";
+document.getElementById("dashSubject").innerText="-";
+document.getElementById("dashLevel").innerText="-";
+document.getElementById("dashCorrect").innerText="0";
+document.getElementById("dashWrong").innerText="0";
+document.getElementById("dashAccuracy").innerText="0%";
+document.getElementById("accuracyBar").style.width="0%";
+
+if(Object.keys(completedSubjects).length===subjectsList.length){
+showFinalDashboard();
+}
+}
+
+function showFinalDashboard(){
+document.body.innerHTML=`<div style="width:1100px;margin:auto;padding:30px;background:white;
+border-radius:15px;box-shadow:0 10px 25px rgba(0,0,0,0.15);">
+<h2>🏆 Final Performance Dashboard</h2>
+<div id="pieContainer" style="display:flex;gap:30px;flex-wrap:wrap;"></div>
+<canvas id="barChart"></canvas>
+<div id="tableContainer"></div>
+<div id="rankSection"></div>
+</div>`;
+generateAnalytics();
+}
+
+function generateAnalytics(){
+let subjects=Object.keys(completedSubjects);
+let totalAcc=0,totalLvl=0;
+subjects.forEach(sub=>{
+createPieChart(sub,completedSubjects[sub]);
+totalAcc+=parseFloat(completedSubjects[sub].accuracy);
+totalLvl+=completedSubjects[sub].level;
+});
+createBarChart(subjects);
+createAnimatedTable(subjects);
+let overall=(totalAcc/subjects.length).toFixed(1);
+let avgLevel=(totalLvl/subjects.length);
+let rank=overall>=90?"🥇 Expert":overall>=75?"🥈 Advanced":overall>=50?"🥉 Intermediate":"Beginner";
+let ability=((avgLevel*20)+parseFloat(overall)).toFixed(1);
+document.getElementById("rankSection").innerHTML=`
+<hr>
+<h3>Overall Accuracy: ${overall}%</h3>
+<h3>Rank: ${rank}</h3>
+<h3>Ability Score: ${ability} / 160</h3>`;
+}
+
+function createPieChart(subject,data){
+let canvas=document.createElement("canvas");
+canvas.width=300;canvas.height=300;
+let div=document.createElement("div");
+div.style.width="300px";
+div.innerHTML=`<h4 style="text-align:center">${subject}</h4>`;
+div.appendChild(canvas);
+document.getElementById("pieContainer").appendChild(div);
+new Chart(canvas,{
+type:'doughnut',
+data:{labels:['Correct','Wrong'],
+datasets:[{data:[data.correct,data.wrong],
+backgroundColor:['#28a745','#dc3545']}]},
+options:{responsive:false,animation:{animateScale:true,duration:1500}}
+});
+}
+
+function createBarChart(subjects){
+new Chart(document.getElementById("barChart"),{
+type:'bar',
+data:{labels:subjects,
+datasets:[{label:'Accuracy %',
+data:subjects.map(s=>completedSubjects[s].accuracy),
+backgroundColor:['#4CAF50','#2196F3','#FF9800']}]},
+options:{animation:{duration:1500},scales:{y:{beginAtZero:true,max:100}}}
+});
+}
+
+function createAnimatedTable(subjects){
+let html=`<table class="analytics-table">
+<tr><th>Subject</th><th>Correct</th><th>Wrong</th><th>Accuracy</th></tr>`;
+subjects.forEach(sub=>{
+let d=completedSubjects[sub];
+html+=`<tr><td>${sub}</td><td>${d.correct}</td><td>${d.wrong}</td><td>${d.accuracy}%</td></tr>`;
+});
+html+=`</table>`;
+document.getElementById("tableContainer").innerHTML=html;
+}
+
+</script>
+</body>
+</html>
